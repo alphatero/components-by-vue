@@ -1,81 +1,40 @@
 <script setup>
 import IpsetInput from "./components/IpsetInput.vue";
-import { reactive, ref, watch } from "vue";
+import { ref } from "vue";
 
-const refs = ref([]);
-
-function Validate(val) {
-  if (isNaN(Number(val)) || Number(val) > 255 || val === "") return true;
+function isValidateIP(val) {
+  return /(\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}/.test(
+    val
+  );
 }
 
 const isError = ref(false);
 
-function Submit() {
-  isError.value = false;
-
-  refs.value.map((item) => {
-    if (Validate(item.dom.value)) {
-      isError.value = true;
-    }
-  });
+function toFormData(form) {
+  return Object.fromEntries(new FormData(form).entries());
 }
 
-const ip = reactive({
-  ip1: "",
-  ip2: "",
-  ip3: "",
-  ip4: "",
-});
+function onSubmit(e) {
+  const ip = Array.from({ ...toFormData(e.target), length: 4 }).join(".");
 
-watch(
-  () => ip.ip1,
-  () => {
-    if (ip.ip1.length >= 3) {
-      ip.ip2 = ip.ip1.substring(3);
-      ip.ip1 = ip.ip1.substring(0, 3);
-      refs.value[2].dom.focus();
-    }
+  isError.value = !isValidateIP(ip);
+}
+
+function onChange(e) {
+  const { value, maxLength, name } = e.target;
+
+  if (value.length !== maxLength && value.length !== 0) return;
+
+  const form = e.target.closest("form");
+  const current = Number(name);
+
+  if (value.length === 0) {
+    if (current - 1 >= 0)
+      form.querySelector(`input[name="${current - 1}"]`)?.focus();
+    return;
   }
-);
-
-watch(
-  () => ip.ip2,
-  () => {
-    if (ip.ip2.length >= 3) {
-      ip.ip3 = ip.ip2.substring(3);
-      ip.ip2 = ip.ip2.substring(0, 3);
-      refs.value[3].dom.focus();
-    }
-
-    if (ip.ip2.length === 0 && ip.ip1.length > 0) {
-      refs.value[1].dom.focus();
-    }
-  }
-);
-
-watch(
-  () => ip.ip3,
-  () => {
-    if (ip.ip3.length >= 3) {
-      ip.ip4 = ip.ip3.substring(3);
-      ip.ip3 = ip.ip3.substring(0, 3);
-      refs.value[4].dom.focus();
-    }
-
-    if (ip.ip3.length === 0 && ip.ip2.length > 0) {
-      refs.value[2].dom.focus();
-    }
-  }
-);
-
-watch(
-  () => ip.ip4,
-  () => {
-    if (ip.ip4.length === 0 && ip.ip3.length > 0) {
-      refs.value[3].dom.focus();
-    }
-  }
-);
+  form.querySelector(`input[name="${current + 1}"]`)?.focus();
+}
 </script>
 
 <template>
@@ -84,14 +43,12 @@ watch(
       class="min-w-1/6 mx-8 flex h-[152px] flex-col space-y-5 rounded-md bg-white p-4 shadow-md"
     >
       <h2>IP input</h2>
-      <form class="flex space-x-3" @submit.prevent="Submit">
-        <IpsetInput
-          v-model="ip['ip' + index]"
-          v-for="index in 4"
-          :index="index"
-          :key="index"
-          :ref="(el) => (refs[index] = el)"
-        />
+      <form class="flex space-x-3" @submit.prevent="onSubmit" @input="onChange">
+        <div class="flex space-x-3" v-for="index in 4" :key="index">
+          <IpsetInput :name="index - 1" />
+
+          <label v-if="index !== 4" class="self-end">.</label>
+        </div>
 
         <div>
           <button
